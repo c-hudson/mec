@@ -12,18 +12,19 @@
    arguements.
 
    
+```
    Arbitrary Rules:
    o  Do not split up short strings/functions. Code that spans several
          pages that doesn't need to is unreadable too.
-   o  Wrap long strings of text
-   o  Spaces at the end of a line are significant
-   o  Spaces at the begining of a line are not significant
+   o  Wrap long strings of text.
+   o  Spaces at the end of a line are significant after formating.
+   o  Spaces at the begining of a line are not significant after formating.
    o  Make sure formated text can be unformated back to the original
       without modification.
    o  Functions arguements will be split and indented.
 
       The Arguments of the function will be indented so that it lines up with
-        the end of the function name. 
+        the end of the function name on the next line.
 
       Example:                      [return added in example for readability]
          &match  com=[first([extract(u(gdb),match(u(gdb),first(%0)),1)] 
@@ -62,3 +63,4 @@
             @pemit %#=
                [switch(u(first),,v(msg_none),MONITOR,v(msg_monitor))]
 
+```
