@@ -515,7 +515,7 @@ sub usage
 {
    my $out;
 
-   $out = sprintf("\nUsage: $0 [<options>]\n\n");
+   $out = sprintf("\nUsage: $0 [<options>] <filename>\n\n");
    for my $i (keys %valid) {
       $out .= sprintf("   %-15s : %s\n",$i,@valid{$i});
    }
@@ -827,10 +827,12 @@ sub compress_file
 
 handle_commandline();
 simulate_command_completion();
+
 if(@arg{format}) {
-#   for my $i (0 .. 100) {
-      expand_file();
-#   }
+   expand_file();
 } elsif(@arg{unformat}) {
    compress_file();
+} else {
+   printf("%s\n",usage());
+   exit();
 }
