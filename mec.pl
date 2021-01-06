@@ -364,7 +364,7 @@ sub fmt_amper
 sub fmt_dolist
 {
    my ($depth,$cmd,$rest) = @_;
-   my ($ret1, $ret2, $s1,$s2);
+   my ($ret1, $code, $ret2, $s1,$s2);
 
    # split into list and commands
    my ($first,$second) = balanced_split($rest,"=",4); 
@@ -378,7 +378,12 @@ sub fmt_dolist
       $second = $';
    }
    my $list = expand_function($depth+3,$first);
-   my $code = expand_code($depth,$second);
+
+   if($second =~ /^\s*{/) {
+      $code = expand_code($depth,$second);
+   } else {
+      $code = expand_code($depth+3,$second);
+   }
 
    if($list =~ /\n/) {               # if list has returns, give it a new line
       $ret1 = "\n";
