@@ -424,6 +424,11 @@ sub mywrap
    return d($depth,"%s",$result);                  # indent + return results
 }
 
+#
+# noswitch
+#    Remove any switches at the end of a command and return the actual
+#    command.
+#
 sub noswitch
 {
    my $txt = shift;
@@ -436,7 +441,7 @@ sub noswitch
 }
 
 #
-# expand
+# expand_code
 #   Take the contents of an attribute and add spaces, returns, etc so
 #   the code within is more readable.
 #
@@ -445,8 +450,8 @@ sub expand_code
    my ($depth,$input,$indent) = @_;
    my ($out, $count);
 
-   if($input =~ /^(\s*){(\s*)(.*?)}(\s*)$/) {
-      $out .= d($depth,"{$2") . "\n";
+   if($input =~ /^(\s*){(\s*)(.*?)}(\s*)$/) {              # handle code in {}s
+      $out .= d($depth,"{$2") . "\n"; 
       $out .= expand_code($depth+3,$3,$indent);
       $out .= ret($out) . d($depth,"}");
       return $out;
@@ -507,6 +512,10 @@ sub file
    return @data;
 }
 
+#
+# err
+#   Show an error
+#
 sub err
 {
    my ($fmt,@args) = @_;
@@ -516,13 +525,18 @@ sub err
    die();
 }
 
+#
+# usage
+#    provide the user some details about how to run this program.
+#
 sub usage
 {
    my $out;
 
    $out = sprintf("\nUsage: $0 [<options>] <filename>\n\n");
+   $out .= sprintf("   options:\n\n");
    for my $i (keys %valid) {
-      $out .= sprintf("   %-15s : %s\n",$i,@valid{$i});
+      $out .= sprintf("   --%-15s : %s\n",$i,@valid{$i});
    }
    return $out;
 }
@@ -553,6 +567,10 @@ sub handle_commandline
    }
 }
 
+#
+# noret
+#   Remove a return from the end of the line
+#
 sub noret
 {
    my $txt = shift;

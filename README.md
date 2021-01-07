@@ -8,11 +8,15 @@
    mushcode is "formated" and then "unformated", the output should be
    the same as the original mushcode.
 
-   Command line usage may be optained by running this script without any
-   arguements.
+```
+   Usage: ./mec.pl [<options>] <filename>
+
+      Options:
+
+      --unformat     : Unformat MushCode into mush readable format.
+      --format       : Format MushCode into multiple lines for readability
 
    
-```
    Arbitrary Rules:
    o  Do not split up short strings/functions. Code that spans several
          pages that doesn't need to is unreadable too.
@@ -46,7 +50,7 @@
          readable. Commands currently with special formating are:
          @switch/@select, @dolist, &, @while, think, and @pemit
 
-      Example:                      [return added in example for readability]
+      Example with @dolist:        [return added in example for readability]
 
          &short com=$=*:@dolist [u(lwho,u(first))]={@pemit before(##,_)=
             [u(format,%#,##,%0)]};@pemit %#=[switch(u(first),,v(msg_none),
