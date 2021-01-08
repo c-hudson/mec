@@ -35,6 +35,8 @@ my %fmt_cmd = (
    '@while'   => sub { fmt_while(@_);    },
    'think'    => sub { fmt_default(@_);  },
    '@pemit'   => sub { fmt_equal(@_);    },
+   '@wait'    => sub { fmt_equal(@_);    },
+   '@edit'    => sub { fmt_equal(@_);    },
 );
 
 #
@@ -110,26 +112,36 @@ sub balanced_split
       # escaped character or escaped delim via % char
       if($ch eq "\\" || $ch eq "%") {
          $i++;
-      } elsif($ch eq $pr || $ch eq $br) {                # go down one level
-         push(@$stack,$ch);
-      } elsif($ch eq $pl) {                               # go up one level?
-         if($#$stack == -1) {               # end of function at right depth
+      } elsif($ch eq $pr) {                                # go down one level
+         push(@$stack,{ ch => $pl, pos => $i});
+      } elsif($ch eq $br) {                                # go down one level
+         push(@$stack,{ ch => $bl, pos => $i});
+      } elsif($ch eq $pl) {                                # go up one level?
+         if($#$stack == -1) {                # end of function at right depth
             if($type <= 2) {
                push(@$seg,ansi_substr($str,$start,$i-$start));
                $start = $i + 1;
                last;
             }
-         } elsif($#$stack >= 0 && @$stack[-1] eq $pr) {
+         } elsif($ch eq @{@$stack[-1]}{ch}) {
             pop(@$stack);                  # pair matched, move up one level
          }
-      } elsif($ch eq $bl && $#$stack >= 0 && @$stack[-1] eq $br) {
+      } elsif($#$stack >= 0 && $ch eq @{@$stack[-1]}{ch}) {
          pop(@$stack);                      # pair matched, move up one level
       } elsif($ch eq $delim && $#$stack == -1) {      # delim at right level
          push(@$seg,ansi_substr($str,$start,$i-$start));
          return $$seg[0], ansi_substr($str,$i+1), 1 if($type == 4);
          $start = $i+1;
       }
+      
+      # at end of string and something is still in the stack, lets try going
+      # back one at a time and see if it eventually parses out.
+      if($i + 1 == $end && $#$stack >= 0) {
+         $i = @{@$stack[-1]}{pos};               # start over at last pos + 1
+         pop(@$stack);
+      }
    }
+
    if($type == 4) {                         # handle the various return types
       return ansi_string($str), undef, 0;
    } elsif($type == 3) {
@@ -144,6 +156,7 @@ sub balanced_split
       }
    }
 }
+
 
 #
 # d
@@ -283,6 +296,7 @@ sub fmt_switch
 {
    my ($depth,$cmd,$rest) = @_;
    my ($out,$space);
+#   printf("SWITCH: '%s' -> '%s'\n",$cmd,$rest);
 
    my @list = balanced_split($rest,",",3);
 
@@ -456,7 +470,10 @@ sub expand_code
       $out .= ret($out) . d($depth,"}");
       return $out;
    }
+#   printf("\n\n");
    for my $txt ( balanced_split($input,";",3) ) {  # split data at semi-colon
+#      printf("# '%s'\n",$txt);
+#      next;
       ++$count;
       $depth = 3 if($indent && $count == 2 && $depth == 0);
       if($out ne undef) {                     # delims are eaten, add it back
