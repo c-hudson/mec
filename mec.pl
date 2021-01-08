@@ -113,9 +113,9 @@ sub balanced_split
       if($ch eq "\\" || $ch eq "%") {
          $i++;
       } elsif($ch eq $pr) {                                # go down one level
-         push(@$stack,{ ch => $pl, pos => $i});
+         push(@$stack,{ ch => $pl, i => $i, start => $start, seg => $#$seg});
       } elsif($ch eq $br) {                                # go down one level
-         push(@$stack,{ ch => $bl, pos => $i});
+         push(@$stack,{ ch => $bl, i => $i, start => $start, seg => $#$seg});
       } elsif($ch eq $pl) {                                # go up one level?
          if($#$stack == -1) {                # end of function at right depth
             if($type <= 2) {
@@ -137,8 +137,10 @@ sub balanced_split
       # at end of string and something is still in the stack, lets try going
       # back one at a time and see if it eventually parses out.
       if($i + 1 == $end && $#$stack >= 0) {
-         $i = @{@$stack[-1]}{pos};               # start over at last pos + 1
-         pop(@$stack);
+         my $rp = pop(@$stack);
+         $i = $$rp{i};
+         $start = $$rp{start};
+         delete @$seg[($$rp{seg}+1) .. $#$seg] if($#$seg > $$rp{seg});
       }
    }
 
@@ -296,7 +298,6 @@ sub fmt_switch
 {
    my ($depth,$cmd,$rest) = @_;
    my ($out,$space);
-#   printf("SWITCH: '%s' -> '%s'\n",$cmd,$rest);
 
    my @list = balanced_split($rest,",",3);
 
