@@ -65,23 +65,238 @@ sub code
 }
 
 #
+# ansi_init_noescapes
+#   If a string doesn't contain an escape character, it can't have escape
+#   sequences in them. Initialize the string so its has the correct format
+#   but without the messy processing time to look for what can't be there.
 #
-# ansi functions
-#    These functions emulate the results of teenymush's ansi functions
-#    without actually doing anything with the ansi characters. This allows
-#    the code to be kept in sync with teenymush without the performance hit.
-#
-sub ansi_remove { return shift;                              };
-sub ansi_string { return @{@_[0]}{ch};                       };
-sub ansi_init   { return { ch => shift };                    };
-sub ansi_length { return length(@{@_[0]}{ch});               };
-sub ansi_char   { return substr(@{@_[0]}{ch},@_[1],1);       };
-sub ansi_substr {
-   return substr(@{@_[0]}{ch},
-                 @_[1],
-                 (@_[2] ne undef) ? @_[2] : length(@{@_[0]}{ch}
-                ));
+sub ansi_init_noescapes
+{
+   my ($data,$str) = @_;
+
+   $$data{ch} = [ split(//,$str) ];
+   my $hash = $$data{ch};
+
+   for my $i (0 .. $#{$$data{ch}}) {
+      @{$$data{code}}[$i] = [];
+      @{$$data{snap}}[$i] = [];
+   }
+   return $data;
 }
+
+#
+# ansi_add
+#   Add a character or escape code to the data array. Every add of a
+#   character results in a new element, escape codes are added to existing
+#   elements as long as a character has not been added yet. The ansi state
+#   is also kept track of here.
+#
+sub ansi_add
+{
+   my ($data,$type,$txt) = @_;
+
+   if(ref($data) ne "HASH"   ||                           # insanity check
+      !defined $$data{ch}    ||
+      !defined $$data{state} ||
+      !defined $$data{code}  ||
+      !defined $$data{ch}) {
+      croak("Invalid data structure provided");
+   }
+
+   my $ch   = $$data{ch};                      # make things more readable
+   my $code = $$data{code};
+   my $snap = $$data{snap};
+
+   # $ch will be the controlling array
+   if($#$ch == -1 || $$ch[$#$ch] ne undef) {
+      $$ch[$#$ch+1] = undef;
+      $$code[$#$ch] = [];
+      $$snap[$#$ch] = [];
+   }
+
+   if(!$type) {                                           # add escape code
+      push(@{$$code[$#$ch]}, $txt);
+
+      if(substr($txt,1,3) eq "[0m") {
+         $$data{state} = [];
+      } else {
+         push(@{$$data{state}},$txt);            # keep track of current state
+      }
+   } else {                                                 # add character
+      $$ch[$#$ch] = $txt;
+      $$snap[$#$ch] = [ @{@$data{state}} ];  # copy current state to char
+   }
+   return length($txt);
+}
+
+#
+# ansi_substr
+#    Do a substr on a string while preserving the escape codes.
+#
+#    no-ansi flag : do not copy over escape sequences
+#
+sub ansi_substr
+{
+   my ($txt,$start,$count,$noansi) = @_;
+   my ($result,$data);
+   my $last = -1;
+
+   if(ref($txt) eq "HASH") {
+      $data = $txt;
+   } else {
+      $data = ansi_init($txt);
+   }
+
+   $start = 0 if($start !~ /^\s*\d+\s*$/);                  # sanity checks
+   if($count !~ /^\s*\d+\s*$/) {
+      $count = ansi_length($txt);
+   } else {
+      $count += $start;
+   }
+   return undef if($start < 0);                         # no starting point
+
+   # loop through each "character" w/attached ansi codes
+   for(my $i = $start;$i < $count && $i <= $#{$$data{ch}};$i++) {
+      if(!$noansi) {
+         my $code=join('',@{@{$$data{($i == $start) ? "snap" : "code"}}[$i]});
+         $result .= $code . @{$$data{ch}}[$i];
+      } else {
+         $result .= @{$$data{ch}}[$i];
+      }
+      $last = $#{@{$$data{snap}}[$i]};
+   }
+
+   # are attributes turned on on last character? if so, reset them.
+   return $result . (($last == -1) ? "" : (chr(27) . "[0m"));
+}
+
+#
+# ansi_length
+#    Return the length of a string without counting all those pesky escape
+#    codes.
+#
+sub ansi_length
+{
+   my $txt = shift;
+   my $data = shift;
+
+   if(ref($txt) eq "HASH") {                           # already inited txt?
+      $data = $txt;
+   } else {
+      $data = ansi_init($txt);
+   }
+
+   if($#{$$data{ch}} == -1) {                                       # empty
+      return 0;
+   } elsif(@{$$data{ch}}[-1] eq undef) {               # last char pos empty?
+      return $#{$$data{ch}};
+   } else {
+      return $#{$$data{ch}} + 1;                        # last char populated
+   }
+}
+
+#
+# ansi_remove
+#    remove any escape codes from the string
+#
+sub ansi_remove
+{
+#   my $txt = ansi_init(shift);
+#   return ansi_print($txt,0);
+
+   my $txt = shift;
+   $txt =~ s/\e\[[\d;]*[a-zA-Z]//g;
+   return $txt;
+}
+
+
+#
+# ansi_init
+#    Read in a string and convert it into a data structure that can be
+#    easily parsed / modified, i hope.
+#
+#     {
+#       code => [ [ array of arrays containing escape codes ] ]
+#       ch   => [ Array containing each character one by one ]
+#       snap => [ [ array of arrays containing all active escape codes
+#                   at the time the character was encountered ] ]
+#       state=> [ internal, current state of active escape does ]
+#     }
+#
+sub ansi_init
+{
+   my $str = shift;
+   my $data = {
+      ch     => [],
+      code   => [],
+      state  => [],
+      snap   => []
+   };
+
+   # optimization for strings with no escapes
+   return ansi_init_noescapes($data,$str) if($str !~ /\e/);
+
+   for(my ($len,$i)=(length($str),0);$i < $len;) {
+       if(ord(substr($str,$i,1)) eq 27) {                      # found escape
+          my $sub = substr($str,$i+1);
+
+          # parse known escape sequences
+          if($sub =~ /^\[([\d;]*)([a-zA-Z])/) {
+             $i += ansi_add($data,0,chr(27) . "[" . $1 . $2);
+          } elsif($sub =~ /^([#O\(\)])([a-z0-9])/i) {
+             $i += ansi_add($data,0,chr(27) . $1 . $2);
+          } elsif($sub =~ /^(\[{0,1})([\?0-9]*);([0-9]*)([a-z])/i) {
+             $i += ansi_add($data,0,chr(27) . $1 . $2 . ";" . $3 . $4);
+          } elsif($sub =~ /^(\[{0,1})([\?0-9]*)([a-z])/i) {
+             $i += ansi_add($data,0,chr(27) . $1 . $2 . $3);
+          } elsif($sub =~ /^([\<\=\>78])/) {
+             $i += ansi_add($data,0,chr(27) . $1);
+          } elsif($sub =~ /^\/Z/i) {
+             $i += ansi_add($data,0,chr(27) . "\/Z");
+          } else {
+             $i++;                   # else ignore non-known escape codes
+          }
+      } else {
+         $i += ansi_add($data,1,substr($str,$i,1));          # non-escape code
+      }
+   }
+   return $data;
+}
+
+#
+# ansi_string
+#    Take ansi data structure and return
+#        type => 0 : everything but the escape codes
+#        type => 1 : original string [including escape codes]
+#
+sub ansi_string
+{
+   my ($data,$type) = @_;
+   my $buf;
+
+   for my $i (0 .. $#{$$data{ch}}) {
+      $buf .= join('', @{@{$$data{code}}[$i]}) if($type);
+      $buf .= @{$$data{ch}}[$i];
+   }
+   return $buf;
+}
+
+#
+# ansi_char
+#    Returns one character of the current string. Due to the nature of the
+#    ansi functions, this will only return characters not in ansi character
+#    strings. While this is silly to use a function to do this, this helps
+#    abstract the data set for situations in which the ansi functions are
+#    replaced by standard string functions.
+#
+sub ansi_char
+{
+   my ($data,$pos) = @_;
+
+   return @{$$data{ch}}[$pos];
+}
+
+
 
 
 # balanced_split
