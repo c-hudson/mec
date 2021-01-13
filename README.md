@@ -1,11 +1,11 @@
-# mec
+﻿# mec
    This script takes mushcode and attempts to make it more readable
    by splitting single lines across multiple lines. Various arbitrary
    rules are used to split up commands and functions.
 
    Conversion back into a MUSH appropriate form is supported and is
    done so without loss of characters from the original. I.e. If the
-   mushcode is "formated" and then "unformated", the output should be
+   mushcode is "formatted" and then "unformatted", the output should be
    the same as the original mushcode.
 
 ```
@@ -21,11 +21,11 @@
    o  Do not split up short strings/functions. Code that spans several
          pages that doesn't need to is unreadable too.
    o  Wrap long strings of text.
-   o  Spaces at the end of a line are significant after formating.
-   o  Spaces at the begining of a line are not significant after formating.
-   o  Make sure formated text can be unformated back to the original
+   o  Spaces at the end of a line are significant after formatting.
+   o  Spaces at the beginning of a line are not significant after formatting.
+   o  Make sure formatted text can be unformatted back to the original
       without modification.
-   o  Functions arguements will be split and indented.
+   o  Functions arguments will be split and indented.
 
       The Arguments of the function will be indented so that it lines up with
         the end of the function name on the next line.
@@ -47,7 +47,7 @@
             )]
       
    o  Some commands will be indented in a way that I think is more
-         readable. Commands currently with special formating are:
+         readable. Commands currently with special formatting are:
          @switch/@select, @dolist, &, @while, think, and @pemit
 
       Example with @dolist:        [return added in example for readability]
