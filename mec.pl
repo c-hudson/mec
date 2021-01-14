@@ -991,7 +991,7 @@ sub expand_file
      } elsif(@arg{mushify}) {
         delete @arg{mushify};
         if($line =~ /^\s*(&|@)([a-zA-Z0-9\_\!\+]+) ([^=]+)=/) {
-           printf("%s%s %s=",$1,$2,$3);
+           printf("%s%s %s=\n",$1,$2,$3);
            $line = $';
         }
         $line =~ s/%r/\n/g;
@@ -999,6 +999,9 @@ sub expand_file
         $line =~ s/\[chr\(92\)\]/\\/g;
         while($line =~ /\[space\((\d+)\)\]/) {
            $line = $` . (" " x $1) . $';
+        }
+        while($line =~ /\[repeat\(([^,]+),(\d+)\)\]/) {
+           $line = $` . ($1 x $2) . $';
         }
         printf("%s\n",$line);
      } elsif(length($line) < 60) {
@@ -1069,6 +1072,37 @@ sub tomush
    return $output;
 }
 
+#
+# mushify
+#    Convert a string into its mush equivalent while trying to use as
+#    few characters as possible. Do character compression using the
+#    repeat() command.
+#
+sub mushify
+{
+   my $txt = shift;
+   my ($ch,$done,$start,$i,$mult,$mush,$out,$loc);
+
+   $txt =~ s/\t/     /g;                                      # expand tabs
+   $txt =~ s/^\n{2,999}/\n/g;
+   for($loc=0,$done=0;$loc <= length($txt);$loc++,$done=0) {
+      for($i=1;$i < 10 && $i < (length($txt)- $loc) / 2 && !$done;$i++) {
+         my $seg = substr($txt,$loc,$i);
+         for($mult=1;$seg eq substr($txt,$loc + ($i*$mult),$i);$mult++) {};
+         if(($seg eq " " && $mult > 6) || ((length($mush=tomush($seg,1,0,
+            length($txt)))+length($mult) + 11) < (length($seg)*$mult))) {
+            $out .= tomush(substr($txt,$start,$loc-$start),0,$loc,length($txt));
+            $out .= ($seg eq " ") ? "[space($mult)]" : "[repeat($mush,$mult)]";
+            $loc += length($seg) * $mult - 1;                  # skip chars
+            $done = 1;                                    # get out of loop
+         }
+      }
+      $start = $loc + 1 if($done);              # set next starting point
+   }
+   return $out . tomush(substr($txt,$start,length($txt)),0,$start,length($txt));
+}
+
+
 
 sub compress_file
 {
@@ -1080,17 +1114,17 @@ sub compress_file
          printf("%s\n",$line);
          $buf = undef;
          @arg{mushify} = 1;
-      } elsif(@arg{mushify} && /^(&|@)([a-zA-Z0-9\_\!\+]+) ([^=]+)=/) {
-         printf("%s\n",tomush($buf)) if $buf ne undef;
-         $buf = $line . "\n";
+      } elsif(@arg{mushify} && $line =~ /^(&|@)([a-zA-Z0-9\_\!\+]+) ([^=]+)=/) {
+         printf("%s\n",mushify(noret($buf))) if $buf ne undef;
+         $buf = $line;
       } elsif($line =~ /^@@\s+mushify off\s*$/) {
-         printf("%s\n",tomush($buf)) if $buf ne undef;
+         printf("%s\n",mushify(noret($buf))) if $buf ne undef;
          printf("%s\n",$line);
          delete @arg{mushify};
          $buf = undef;
       } elsif(@arg{mushify}) {
          $line =~ s/\s+$//;
-         $buf .= $line;
+         $buf .= $line . "\n";
       } elsif($line =~ /^\s+/) {
          $buf .= $line . "\n";
       } elsif(@arg{mushify}) {
@@ -1102,7 +1136,7 @@ sub compress_file
    }
 
    if(@arg{mushify}) {
-     printf("%s\n",tomush($buf));
+     printf("%s\n",mushify($buf));
    } else {
      printf("%s\n",ansi_remove(compress($buf))) if $buf ne undef;
    }
