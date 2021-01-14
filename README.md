@@ -49,8 +49,7 @@
 
       --unformat     : Unformat MushCode into mush readable format.
       --format       : Format MushCode into multiple lines for readability
-
-   
+```
    Arbitrary Rules:
    o  Do not split up short strings/functions. Code that spans several
          pages that doesn't need to is unreadable too.
