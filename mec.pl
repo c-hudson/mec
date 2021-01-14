@@ -274,8 +274,9 @@ sub balanced_split
    for($i=0;$i < $end;$i++) {
       my $ch = ansi_char($str,$i);                           # get current ch
 
-      # escaped character or escaped delim via % char
-      if($ch eq "\\" || $ch eq "%") {
+     # escaped character or escaped delim via % char but not %{varable}s
+      if($ch eq "\\" ||
+         ($ch eq "%" && ansi_substr($str,$i,undef,1) !~ /^%\{[a-zA-Z0-9]+\}/)) {
          $i++;
       } elsif($ch eq $pr) {                                # go down one level
          push(@$stack,{ ch => $pl, i => $i, start => $start, seg => $#$seg});
@@ -984,7 +985,23 @@ sub expand_file
   for my $line (file(@arg{input})) {
      $line =~ s/\r|\n//g;
   
-     if(length($line) < 60) {
+     if($line =~ /^@@\s+mushify\s*$/) {
+        printf("%s\n",$line);
+        @arg{mushify} = 1;
+     } elsif(@arg{mushify}) {
+        delete @arg{mushify};
+        if($line =~ /^\s*(&|@)([a-zA-Z0-9\_\!\+]+) ([^=]+)=/) {
+           printf("%s%s %s=",$1,$2,$3);
+           $line = $';
+        }
+        $line =~ s/%r/\n/g;
+        $line =~ s/%b/ /g;
+        $line =~ s/\[chr\(92\)\]/\\/g;
+        while($line =~ /\[space\((\d+)\)\]/) {
+           $line = $` . (" " x $1) . $';
+        }
+        printf("%s\n",$line);
+     } elsif(length($line) < 60) {
         printf("%s\n",$line);
      } elsif($line =~ /^\s*([^ \/]+)/ && defined @fmt_cmd{lc($1)}) {
         my $out = expand_code(0,$line,1);
@@ -1012,19 +1029,83 @@ sub expand_file
   }
 }
 
+#
+# mush
+#   Convert the a string into its mush equivalent. $flag tells the function
+#   if the code is going to be used inside a function.
+#
+# note:
+#
+#    \ ,     These characters are converted to chr() equalivalent because
+#            not all mushes let you escape or {} these characters in the
+#            same way when inside ansi() or functions.
+#
+sub tomush
+{
+   my ($txt,$flag,$start,$end) = @_;
+   my ($i,$out,$output);
+
+   for($i = 0;$i < length($txt);$i++) {                    # cycle each char
+      my $ch = substr($txt,$i,1);
+      if($ch eq " " && ($i + $start == 0 || ($i + 1 == length($txt) && $flag)||
+         $i + $start + 1 == $end && !$flag)) {
+         $out = "%b";                                 # special case spaces
+      } elsif($ch eq " ") {
+         $out = ($out eq " ") ? "%b" : " ";                 # alternate %bs
+      } elsif($ch eq "\n") {
+         $out = "%r";
+      } elsif($ch eq "\\") {
+         $out = "[chr(92)]";
+      } elsif($ch eq '[' || $ch eq ']' || $ch eq '%' || $ch eq '\\' ||
+         $ch eq '{' || $ch eq '}' || ($ch eq "," && $flag)) { # escape char
+         $out = "\\$ch";
+      } elsif($ch eq ",") {
+         $out = "[chr(44)]";
+      } else {
+         $out = $ch;                                          # normal char
+      }
+      $output .= $out;                                      # add to output
+   }
+   return $output;
+}
+
+
 sub compress_file
 {
    my $buf;
 
    for my $line (file(@arg{input})) {
-      if($line =~ /^\s+/) {
+      if($line =~ /^@@\s+mushify\s*$/) {
+         printf("%s\n",ansi_remove(compress($buf))) if $buf ne undef;
+         printf("%s\n",$line);
+         $buf = undef;
+         @arg{mushify} = 1;
+      } elsif(@arg{mushify} && /^(&|@)([a-zA-Z0-9\_\!\+]+) ([^=]+)=/) {
+         printf("%s\n",tomush($buf)) if $buf ne undef;
+         $buf = $line . "\n";
+      } elsif($line =~ /^@@\s+mushify off\s*$/) {
+         printf("%s\n",tomush($buf)) if $buf ne undef;
+         printf("%s\n",$line);
+         delete @arg{mushify};
+         $buf = undef;
+      } elsif(@arg{mushify}) {
+         $line =~ s/\s+$//;
+         $buf .= $line;
+      } elsif($line =~ /^\s+/) {
          $buf .= $line . "\n";
+      } elsif(@arg{mushify}) {
+         $buf .= $line;
       } else {
          printf("%s\n",ansi_remove(compress($buf))) if $buf ne undef;
          $buf = $line . "\n";
       }
    }
-   printf("%s\n",ansi_remove(compress($buf))) if $buf ne undef;
+
+   if(@arg{mushify}) {
+     printf("%s\n",tomush($buf));
+   } else {
+     printf("%s\n",ansi_remove(compress($buf))) if $buf ne undef;
+   }
 }
 
 # -------------------------------------------------------------------------- #

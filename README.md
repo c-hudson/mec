@@ -8,6 +8,39 @@
    mushcode is "formatted" and then "unformatted", the output should be
    the same as the original mushcode.
 
+   This script also supports converting formated text into its mush
+   equalivant. Spaces, returns, and special characters will be converted
+   into %b, %r, or into whatever is needed to be displayed. To invoke
+   this mode, place a "@@ mushify" on the blank line before the
+   text to be converted. This can be turned off with '@@ mushify off'
+
+   The script supports the reverse process of converting the %b, %r, 
+   etc to its more readable form.
+
+   Example:
+      @@ mushify
+      @desc me=
+          _-----_
+        .'__     `.
+        |/  \_~~'\|
+        | _  _  _ |
+       (|'o`'|`'o`|)
+        \`-' | `-'/
+         `. --- .'
+       ___|`---'|___
+      @@ mushify off
+
+   Becomes:
+
+      @@ mushify
+      @desc me= %b %b_-----_ %b.'__ %b %b `. %b|/ %b[chr(92)]_~~'[chr(92)]| 
+      %b| _ %b_ %b_ | (|'o`'|`'o`|) %b[chr(92)]`-' | `-'/ %b `. --- .' ___|
+      `---'|___
+      @@ mushify off
+
+   Note: Returns were added to the output for readability.
+      
+
 ```
    Usage: ./mec.pl [<options>] <filename>
 
