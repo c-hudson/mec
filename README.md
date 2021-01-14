@@ -18,6 +18,7 @@
    etc to its more readable form.
 
    Example:
+```
       @@ mushify
       @desc me=
           _-----_
@@ -29,15 +30,15 @@
          `. --- .'
        ___|`---'|___
       @@ mushify off
-
+```
    Becomes:
-
+```
       @@ mushify
       @desc me= %b %b_-----_ %b.'__ %b %b `. %b|/ %b[chr(92)]_~~'[chr(92)]| 
       %b| _ %b_ %b_ | (|'o`'|`'o`|) %b[chr(92)]`-' | `-'/ %b `. --- .' ___|
       `---'|___
       @@ mushify off
-
+```
    Note: Returns were added to the output for readability.
       
 
