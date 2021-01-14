@@ -65,26 +65,6 @@ sub code
 }
 
 #
-# ansi_init_noescapes
-#   If a string doesn't contain an escape character, it can't have escape
-#   sequences in them. Initialize the string so its has the correct format
-#   but without the messy processing time to look for what can't be there.
-#
-sub ansi_init_noescapes
-{
-   my ($data,$str) = @_;
-
-   $$data{ch} = [ split(//,$str) ];
-   my $hash = $$data{ch};
-
-   for my $i (0 .. $#{$$data{ch}}) {
-      @{$$data{code}}[$i] = [];
-      @{$$data{snap}}[$i] = [];
-   }
-   return $data;
-}
-
-#
 # ansi_add
 #   Add a character or escape code to the data array. Every add of a
 #   character results in a new element, escape codes are added to existing
@@ -95,39 +75,32 @@ sub ansi_add
 {
    my ($data,$type,$txt) = @_;
 
-   if(ref($data) ne "HASH"   ||                           # insanity check
-      !defined $$data{ch}    ||
-      !defined $$data{state} ||
-      !defined $$data{code}  ||
-      !defined $$data{ch}) {
-      croak("Invalid data structure provided");
-   }
-
    my $ch   = $$data{ch};                      # make things more readable
    my $code = $$data{code};
    my $snap = $$data{snap};
 
-   # $ch will be the controlling array
    if($#$ch == -1 || $$ch[$#$ch] ne undef) {
       $$ch[$#$ch+1] = undef;
       $$code[$#$ch] = [];
       $$snap[$#$ch] = [];
    }
 
-   if(!$type) {                                           # add escape code
-      push(@{$$code[$#$ch]}, $txt);
-
-      if(substr($txt,1,3) eq "[0m") {
+   if($type) {
+     for my $c (split(//,$txt)) {                 # add multiple characters
+        $$ch[ $#$ch + ((@$ch[$#$ch] ne undef) ? 1 : 0) ] = $c;
+        @$code[$#$ch] = [] if(!defined @$code[$#$ch]);
+        @$snap[$#$ch] = [ @{@$data{state}} ];
+     }
+   } else {                                           # add escape sequence
+      push(@{$$code[$#$ch]},$txt);
+      if($txt eq "\e[0m") {
          $$data{state} = [];
       } else {
-         push(@{$$data{state}},$txt);            # keep track of current state
+         push(@{$$data{state}},$txt);
       }
-   } else {                                                 # add character
-      $$ch[$#$ch] = $txt;
-      $$snap[$#$ch] = [ @{@$data{state}} ];  # copy current state to char
    }
-   return length($txt);
 }
+
 
 #
 # ansi_substr
@@ -226,42 +199,19 @@ sub ansi_remove
 sub ansi_init
 {
    my $str = shift;
-   my $data = {
-      ch     => [],
-      code   => [],
-      state  => [],
-      snap   => []
-   };
 
-   # optimization for strings with no escapes
-   return ansi_init_noescapes($data,$str) if($str !~ /\e/);
+   my $data = { ch => [], code => [], state  => [], snap   => [] };
 
-   for(my ($len,$i)=(length($str),0);$i < $len;) {
-       if(ord(substr($str,$i,1)) eq 27) {                      # found escape
-          my $sub = substr($str,$i+1);
-
-          # parse known escape sequences
-          if($sub =~ /^\[([\d;]*)([a-zA-Z])/) {
-             $i += ansi_add($data,0,chr(27) . "[" . $1 . $2);
-          } elsif($sub =~ /^([#O\(\)])([a-z0-9])/i) {
-             $i += ansi_add($data,0,chr(27) . $1 . $2);
-          } elsif($sub =~ /^(\[{0,1})([\?0-9]*);([0-9]*)([a-z])/i) {
-             $i += ansi_add($data,0,chr(27) . $1 . $2 . ";" . $3 . $4);
-          } elsif($sub =~ /^(\[{0,1})([\?0-9]*)([a-z])/i) {
-             $i += ansi_add($data,0,chr(27) . $1 . $2 . $3);
-          } elsif($sub =~ /^([\<\=\>78])/) {
-             $i += ansi_add($data,0,chr(27) . $1);
-          } elsif($sub =~ /^\/Z/i) {
-             $i += ansi_add($data,0,chr(27) . "\/Z");
-          } else {
-             $i++;                   # else ignore non-known escape codes
-          }
-      } else {
-         $i += ansi_add($data,1,substr($str,$i,1));          # non-escape code
-      }
+   while($str =~ /\e\[([\d;]*)([a-zA-Z])/) {
+      $str = $';
+      ansi_add($data,1,$`) if $` ne undef;
+      ansi_add($data,0,"\e[$1$2");
    }
+   ansi_add($data,1,$str) if($str ne undef);
+
    return $data;
 }
+
 
 #
 # ansi_string
