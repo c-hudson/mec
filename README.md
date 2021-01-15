@@ -13,9 +13,13 @@
    into %b, %r, or into whatever is needed to be displayed. To invoke
    this mode, place a "@@ mushify" on the blank line before the
    text to be converted. This can be turned off with '@@ mushify off'
-
    The script supports the reverse process of converting the %b, %r, 
    etc to its more readable form.
+
+   Output from commands can be converted into its mush equalivant as well
+   with the --one or --multi command line options. This makes it useful for
+   quoting output from a command directly to the mush. See example below.
+ 
 
    Example:
 ```
@@ -40,15 +44,44 @@
       @@ mushify off
 ```
    Note: Returns were added to the output for readability.
-      
+
+   --one and --multi example:
 
 ```
+   > who | ./mec.pl --one
+   %radrick %b tty1[space(9)]2021-01-14 16:59%radrick %b tty7[space(9)]2021-01-06 20:51 (:0)%radrick %b pts/2[space(8)]2021-01-14 19:10 (192.168.1.1)%radrick %b pts/1[space(8)]2020-12-19 00:18 (tmux(25724).\%2)%radrick %b pts/0[space(8)]2021-01-08 09:08 (tmux(25724).\%7)%radrick %b pts/4[space(8)]2021-01-10 23:31 (tmux(25724).\%8)%radrick %b pts/5[space(8)]2020-12-18 23:39 (tmux(25724).\%0)%radrick %b pts/6[space(8)]2020-12-19 00:18 (tmux(25724).\%3)%radrick %b pts/9[space(8)]2020-12-21 19:00 (tmux(25724).\%4)%radrick %b pts/10[space(7)]2021-01-11 10:22 (tmux(25724).\%9)%radrick %b pts/11[space(7)]2020-12-26 20:29 (tmux(25724).\%6)%radrick%b %bpts/13[space(7)]2021-01-11 13:24 (tmux(25724).\%10)
+
+   > who | ./mec.pl --multi
+   adrick %b tty1[space(9)]2021-01-14 16:59
+   adrick %b tty7[space(9)]2021-01-06 20:51 (:0)
+   adrick %b pts/2[space(8)]2021-01-14 19:10 (192.168.1.1)
+   adrick %b pts/1[space(8)]2020-12-19 00:18 (tmux(25724).\%2)
+   adrick %b pts/0[space(8)]2021-01-08 09:08 (tmux(25724).\%7)
+   adrick %b pts/4[space(8)]2021-01-10 23:31 (tmux(25724).\%8)
+   adrick %b pts/5[space(8)]2020-12-18 23:39 (tmux(25724).\%0)
+   adrick %b pts/6[space(8)]2020-12-19 00:18 (tmux(25724).\%3)
+   adrick %b pts/9[space(8)]2020-12-21 19:00 (tmux(25724).\%4)
+   adrick %b pts/10[space(7)]2021-01-11 10:22 (tmux(25724).\%9)
+   adrick %b pts/11[space(7)]2020-12-26 20:29 (tmux(25724).\%6)
+   adrick %b pts/13[space(7)]2021-01-11 13:24 (tmux(25724).\%10)
+
+   An example use of --one that could be used with tinyfugue:
+
+      /quote -0 say !who | ./mec --one
+
+   An example use of --multi that could be used with tinyfugue:
+
+      /quote -0 :|> !who | ./mec --multi
+
    Usage: ./mec.pl [<options>] <filename>
 
       Options:
 
       --unformat     : Unformat MushCode into mush readable format.
       --format       : Format MushCode into multiple lines for readability
+      --one          : Mushify input for using in a say command
+      --multi        : Mushify input for quoting in multipe lines
+
 
    Arbitrary Rules:
    o  Do not split up short strings/functions. Code that spans several

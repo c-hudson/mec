@@ -45,6 +45,8 @@ my %fmt_cmd = (
 my %valid = (
    format     => "Format MushCode into multiple lines for readability",
    unformat   => "Unformat MushCode into mush readable format.",
+   one        => "Mushify input for using in a say command",
+   multi      => "Mushify input for quoting in multipe lines"
 );
 
 sub code
@@ -1149,7 +1151,17 @@ sub compress_file
 handle_commandline();
 simulate_command_completion();
 
-if(@arg{format}) {
+if(@arg{one}) {
+   my $input = "\n" . join("",<STDIN>);      # remove return at end of input
+   $input =~ s/[\r|\n]+$//;
+
+   printf("%s\n",mushify($input));
+} elsif(@arg{multi}) {
+   for my $line (<STDIN>) {
+      $line =~ s/\r|\n//g;
+      printf("%s\n",mushify($line));
+   }
+} elsif(@arg{format}) {
    expand_file();
 } elsif(@arg{unformat}) {
    compress_file();
